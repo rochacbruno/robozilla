@@ -64,6 +64,15 @@ class RawReporter(object):
             file_path
         ), bug_data.get('flags', ''))
 
+    def write_header(self):
+        print('{0} | {1} | {2} | {3} | {4}'.format(
+            self._left_just_string('Handler', 17),
+            self._left_just_string('BugID', 10),
+            self._left_just_string('State', 22),
+            self._left_just_string('Line', 5),
+            'Filepath'
+        ), '{Flags}')
+
     def stop(self, success=True):
         self._started = False
         self._end_time = time.time()

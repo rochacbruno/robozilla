@@ -47,6 +47,16 @@ class BZReader(object):
             self._connection = bz_conn
         return self._connection
 
+    def get_bug_data_in_bulk(self, bugs):
+        bz_conn = self._get_connection()
+        result = bz_conn.getbugs(bugs, include_fields=self.include_fields)
+        chunk_data = {}
+        for data in result:
+            bug_data = self.set_bug_data_fields(data)
+            chunk_data[str(bug_data['id'])] = bug_data
+            self._cache[str(bug_data['id'])] = bug_data
+        return chunk_data
+
     def get_bug_data(self, bug_id):
         bug_data = self._cache.get(bug_id, None)
         if not bug_data:
@@ -56,27 +66,7 @@ class BZReader(object):
                     bug_id,
                     # include_fields=self.include_fields
                 )
-                bug_data = {}
-                for field in self.include_fields:
-                    if field == 'flags' and self._flags_fields:
-                        flags_data = {}
-                        flags = getattr(bug, field, [])
-                        for flag_entry in flags:
-                            key_name, value_name = self._flags_fields
-                            key = flag_entry.get(key_name, '')
-                            value = flag_entry.get(value_name, '')
-                            if key:
-                                if self._flags_key_filters:
-                                    for key_filter in self._flags_key_filters:
-                                        if fnmatch.fnmatch(key, key_filter):
-                                            flags_data[key] = value
-                                            break
-                                else:
-                                    flags_data[key] = value
-
-                        bug_data[field] = flags_data
-                    else:
-                        bug_data[field] = getattr(bug, field)
+                bug_data = self.set_bug_data_fields(bug)
 
                 self._cache[bug_id] = bug_data
 
@@ -84,6 +74,30 @@ class BZReader(object):
                 # to handle this
                 pass
 
+        return bug_data
+
+    def set_bug_data_fields(self, bug):
+        bug_data = {}
+        for field in self.include_fields:
+            if field == 'flags' and self._flags_fields:
+                flags_data = {}
+                flags = getattr(bug, field, [])
+                for flag_entry in flags:
+                    key_name, value_name = self._flags_fields
+                    key = flag_entry.get(key_name, '')
+                    value = flag_entry.get(value_name, '')
+                    if key:
+                        if self._flags_key_filters:
+                            for key_filter in self._flags_key_filters:
+                                if fnmatch.fnmatch(key, key_filter):
+                                    flags_data[key] = value
+                                    break
+                        else:
+                            flags_data[key] = value
+
+                bug_data[field] = flags_data
+            else:
+                bug_data[field] = getattr(bug, field)
         return bug_data
 
     def bugs_status(self):
